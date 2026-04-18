@@ -1,3 +1,5 @@
+The app is available online at https://d2l1vd7zsm8hzy.cloudfront.net
+
 # Table Of Content
 
 <!-- toc -->
