@@ -8,6 +8,7 @@ The app is available online at https://d2l1vd7zsm8hzy.cloudfront.net
 - [High-Level Design (HLD)](#high-level-design-hld)
   - [Architecture Diagram](#architecture-diagram)
   - [Overview](#overview)
+    - [Why RENTracker is SaaS](#why-rentracker-is-saas)
   - [Frontend](#frontend)
   - [Backend](#backend)
   - [Non-functional attributes](#non-functional-attributes)
@@ -43,11 +44,27 @@ Designed with scalability in mind, the application employs:
 - Comprehensive monitoring through AWS CloudWatch and X-Ray
 - Real-time updates via WebSockets
 
-Built as a SaaS solution using the Pool Model (Fully Shared), where all tenants share the same infrastructure and database with data separation through tenant IDs (in this context, referring to SaaS customers, not to be confused with properties rental tenants, as described above).
-
 The app features an intuitive mobile-friendly design.
 
 User authentication is securely handled through Google.
+
+### Why RENTracker is SaaS
+
+RENTracker is SaaS, not just a hosted web app: each customer runs its own space inside one shared
+deployment and administers it.
+
+- **The customer is the landlord.** A landlord signs up without help and becomes a SaaS tenant
+  with its own `saas_tenant_id`.
+- **The landlord administers that space.** The landlord adds apartments, issues rental agreements
+  and confirms the activity on them; renters sign and act within that landlord's space, and one
+  renter may hold agreements with several landlords.
+- **The operator runs the platform, not the spaces.** The operator can disable a landlord account
+  (`is_disabled`) but does not manage any landlord's apartments, agreements or renters.
+- **Landlords share the infrastructure, not the data.** All landlords share the same Lambdas and
+  tables (the Pool Model, fully shared), and every item carries its `saas_tenant_id`, which keeps
+  each landlord's data apart.
+
+In this sense a "tenant" is a SaaS customer, a landlord, not a person renting an apartment.
 
 ## Frontend
 
