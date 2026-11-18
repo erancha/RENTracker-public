@@ -132,4 +132,3 @@ Each script's header comment is its full documentation, and `--help` prints it.
   scripts, what the stack expects in the account, and the layers
 - [Sign-in](docs/sign-in.md) — how Google sign-in reaches the APIs through the shared pool, and
   its setup in a new account
-- Decision records — why the app is built this way, one decision per record
