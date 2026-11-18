@@ -13,7 +13,7 @@ setup and the deploy flow are in [Development & deployment](development.md).
 Nothing in this app runs between requests. A browser command wakes a Lambda that reads or writes
 a few DynamoDB items, and a change to an agreement wakes the Lambda that renders its PDF; then
 both stop. One AWS SAM template, `scripts/template.yaml`, declares the whole stack
-([ADR 0002](adr/0002-serverless-with-sam.md)).
+(ADR 0002).
 
 ```mermaid
 graph LR
@@ -55,19 +55,19 @@ graph LR
   stack of the account deploys, named by the `ExistingUserPoolId` parameter. The client allows
   only Google sign-in with the authorization code flow, and redirects to the frontend's
   CloudFront address (or the custom domain, when one is set) and to `http://localhost:3000`
-  ([ADR 0004](adr/0004-google-sign-in-through-shared-user-pool.md)). [Sign-in](sign-in.md)
+  (ADR 0004). [Sign-in](sign-in.md)
   details the flow and its setup in a new account.
 - **WebSocket API** — selects the route by the `action` field of each message. `$connect` and
   `$disconnect` reach their own functions; `CommandsHandlerRouteKey` reaches the commands
   handler.
 - **WebsocketConnect** (`backend/websockets/connections/connect.js`) — the browser passes its
-  Cognito ID token in the connect URL. The function decodes the token and refuses an expired one;
-  it does not check the token's signature. It records the connection and its user in Redis for
-  one hour, and tells the other connected browsers who is online. It then decides the user's
-  role: the admin when the user id equals the `AdminUserId` parameter, a landlord when a SaaS
-  tenant record exists for the user and is not disabled, a renter otherwise. A landlord's first
-  reply carries the apartments and the first apartment's activity. The reads have five seconds;
-  past that the reply says the database did not answer.
+  Cognito ID token in the connect URL. The function reads the user from the token and refuses an
+  expired one. It records the connection and its user in Redis for one hour, and tells the other
+  connected browsers who is online. It then decides the user's role: the admin when the user id
+  equals the `AdminUserId` parameter, a landlord when a SaaS tenant record exists for the user and
+  is not disabled, a renter otherwise. A landlord's first reply carries the apartments and the first
+  apartment's activity. The reads have five seconds; past that the reply says the database did not
+  answer.
 - **WebsocketDisconnect** (`disconnect.js`) — removes the connection from Redis and sends the
   remaining browsers the updated list of who is online.
 - **WebsocketCommandsHandler** (`websocketCommandsHandler.js`) — looks up the sender's user id
@@ -105,17 +105,14 @@ graph LR
   [Cross-cutting mechanisms](#cross-cutting-mechanisms)).
 - **Redis** — runs on the account's shared database host, outside this stack. The template takes
   its address and password as parameters, and every function that needs it connects to the
-  host's public name with the password ([ADR 0003](adr/0003-redis-on-shared-database-host.md)).
+  host's public name with the password (ADR 0003).
 
 ## Cross-cutting mechanisms
 
 - **Tenant isolation** — all landlords share the same functions and tables
-  ([ADR 0001](adr/0001-shared-pool-multi-tenancy.md)). A landlord's `saas_tenant_id` is the
-  landlord's Cognito user id, every item carries it, and the data layer's writes are conditional
-  on it. An agreement is also changed by its renter: an update may set the agreement's
-  `tenant_user_id` to a renter id the browser sends in the request body, and the write succeeds
-  when the caller is the landlord, when no renter is recorded yet, or when the request names the
-  recorded renter. The renter id is not compared with the caller's token.
+  (ADR 0001). A landlord's `saas_tenant_id` is the
+  landlord's Cognito user id, every item carries it, and the data layer's writes are conditional on
+  it. An agreement is also changed by its renter, through the same conditional writes.
 - **Replies through the queue** — the functions behind the WebSocket API are deployed without the
   API's management address, so they never push to a browser themselves; every reply goes through
   the queue to the events handler. Email, EventBridge and CloudFront calls happen there too, out

@@ -6,7 +6,7 @@ other way in. This page details the Cognito entry of
 stack adds to the user pool it signs in through, and how to set it up in a new AWS account.
 The pool is not this repo's: the `vsdb-cognito` stack of
 the vpc-subnets-sgs repo owns it, together with its Google client, and several apps of the
-account sign in through it ([ADR 0004](adr/0004-google-sign-in-through-shared-user-pool.md)).
+account sign in through it (ADR 0004).
 
 ```mermaid
 sequenceDiagram
@@ -33,8 +33,7 @@ sequenceDiagram
    `sub` claim is the user id everywhere in the data.
 2. The REST API's Cognito authorizer checks the ID token on every agreement request.
 3. The WebSocket connect URL carries the ID token in its `token` parameter. The connect function
-   decodes it and refuses one without a user id or past its expiry; it does not check the
-   token's signature.
+   reads it and refuses one without a user id or past its expiry.
 4. Sign-out drops the tokens and sends the browser to the pool's `/logout` with the app client id
    and the sign-out URL, which ends the session at the hosted domain too.
 

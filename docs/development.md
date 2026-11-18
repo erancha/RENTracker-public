@@ -107,7 +107,7 @@ repo creates, which `stack-params.sh` names:
   and `sum-WebsocketsConnectionsLayer` of the `sum` stack, each pinned to a version number.
 - Redis on the account's shared database host, run by the vpc-subnets-sgs repository, reached
   by the host's public name with the password of `secrets.sh`
-  ([ADR 0003](adr/0003-redis-on-shared-database-host.md)).
+  (ADR 0003).
 - `SES_SENDER` of `params.sh` as an identity SES has verified, since every mail goes out from
   it.
 
