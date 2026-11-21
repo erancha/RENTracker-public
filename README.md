@@ -83,34 +83,23 @@ graph LR
 ```
 
 **[Architecture](docs/architecture.md)** continues from here: the full diagram, every function,
-queue and table, the cross-cutting mechanisms and the codebase layout.
+queue and table, the storage and the codebase layout.
 
 ## Getting started
 
-You need the AWS CLI, the AWS SAM CLI, `jq`, `git`, and Node.js 24 with `npm`. The stack deploys
-beside resources the account already runs, which `scripts/lib/stack-params.sh` names; a deploy
-into another account starts by pointing those values at equivalents there:
-- the Cognito user pool of the `vsdb-cognito` stack, with Google set up as its sign-in provider
-  (a fresh account starts there: [Sign-in](docs/sign-in.md#setting-up-google));
-- Lambda layers published by the `vsdb-lambda-layers` and `sum` stacks, and this repo's own
-  layers, each published once and pinned to its version number;
-- Redis on the account's shared database host, an EC2 instance that serves databases to several
-  apps of the account, reached by its public name with a password.
+You need bash, git, the AWS CLI v2, the AWS SAM CLI, `jq` and Node.js with `npm`.
+The stack deploys into an AWS account that already runs the user pool and the database host
+of the vpc-subnets-sgs repository ([Setting up Google](docs/sign-in.md#setting-up-google)).
 
-1. Run `./scripts/init-env.sh`, which creates `aws-config.sh`, `secrets.sh` and `params.sh`
-   under `scripts/lib/` from their `.example.sh` files, and fill in the AWS credentials and
-   region, the Redis password and the mail sender address. The files are gitignored, and the
-   scripts refuse to load one git would track.
-2. Run `./scripts/test.sh` to check the scripts and lint the template; the backend has no
-   automated test suite.
-3. Run `./scripts/deploy.sh --frontend`. It builds and deploys the stack, then builds the React
-   app, uploads it and prints its CloudFront address. The git branch selects the stack: `main`
-   deploys `rntrk`, any other branch `rntrk-fb`.
-4. For local frontend work, run `npm start` in `frontend/`; every deploy leaves
-   `frontend/src/appConfig.json` pointing at the branch's stack with a `http://localhost:3000`
-   sign-in redirect, which the stack's Cognito app client allows.
+1. `./scripts/init-env.sh` creates the gitignored settings files under `scripts/lib/`; fill
+   them in.
+2. `./scripts/test.sh` runs every check, with no AWS access.
+3. `./scripts/deploy.sh --frontend` deploys the stack and the frontend and prints its address;
+   `main` deploys `rntrk`, any other branch `rntrk-fb`.
+4. `npm install && npm start` in `frontend/` serves `http://localhost:3000` against the
+   branch's stack.
 
-[Development & deployment](docs/development.md) has the details.
+[Development & deployment](docs/development.md) lists every prerequisite and step.
 
 ## Scripts
 
@@ -126,9 +115,14 @@ Each script's header comment is its full documentation, and `--help` prints it.
 
 ## Details
 
-- [Architecture](docs/architecture.md) — what each part is for, how the parts talk, the data
-  model and the codebase
+- [Architecture](docs/architecture.md) — what each part is for, the storage and the codebase
+- [API endpoints](docs/api.md) — every route, who may call it, what it takes and its limits
+- [Workers' responsibilities and flows](docs/workers.md) — what each background function does,
+  with its limits and retries
+- [Design patterns](docs/design-patterns.md) — the shared layers, the reply queue, cache and
+  settings
+- [Data model](docs/data-model.md) — every table, index and bucket layout, and the Redis keys
+- [Sign-in](docs/sign-in.md) — how Google sign-in reaches the APIs through the shared pool, its
+  setup in a new account, and how a user's role is decided
 - [Development & deployment](docs/development.md) — the settings files, the tests, the
   scripts, what the stack expects in the account, and the layers
-- [Sign-in](docs/sign-in.md) — how Google sign-in reaches the APIs through the shared pool, and
-  its setup in a new account

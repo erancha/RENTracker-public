@@ -3,10 +3,13 @@
 Landlords, renters and the admin sign in to RENTracker with a Google account, and there is no
 other way in. This page details the Cognito entry of
 [Architecture](architecture.md#the-entry-points): how a sign-in reaches the APIs, what the
-stack adds to the user pool it signs in through, and how to set it up in a new AWS account.
-The pool is not this repo's: the `vsdb-cognito` stack of
+stack adds to the user pool it signs in through, how to set it up in a new AWS account, and how
+a user's role is decided. The pool is not this repo's: the `vsdb-cognito` stack of
 the vpc-subnets-sgs repo owns it, together with its Google client, and several apps of the
 account sign in through it (ADR 0004).
+
+**Contents:** [How it works](#how-it-works) · [Setting up Google](#setting-up-google) ·
+[Who may sign in](#who-may-sign-in) · [Roles](#roles)
 
 ```mermaid
 sequenceDiagram
@@ -90,7 +93,12 @@ Google decides first: while the shared Google client's consent screen is in test
 test users listed under **Audience → Test users** of that Google Cloud project get through, as
 the vpc-subnets-sgs page describes. The shared pool runs no function before sign-up, so every
 account Google lets through becomes a pool user on its first sign-in, and the app has no
-allow-list of its own. What a user may do is the app's role decision: the `AdminUserId` user is
-the admin, a user with an enabled SaaS tenant record is a landlord, and every other user is a
-renter. A person who signs in to another app on the same pool
-has the same user id here.
+allow-list of its own. What a user may do follows from the user's role ([Roles](#roles)). A
+person who signs in to another app on the same pool has the same user id here.
+
+## Roles
+
+A user is the admin, a landlord or a renter, and `WebsocketConnect` decides which on every
+connect: the admin when the user id equals the `AdminUserId` parameter, a landlord when a SaaS
+tenant record exists for the user and is not disabled, a renter otherwise. A landlord's first
+reply carries the apartments and the first apartment's activity.
