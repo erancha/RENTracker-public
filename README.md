@@ -4,40 +4,45 @@
 > file the documents name is not here.
 
 A rental tracking app for landlords and the people who rent from them. A landlord lists
-apartments, fills in a rental agreement, and sends the renter a link; the renter signs in, adds
-their details and attachments, and signs on the phone. The app renders the signed agreement as a
-PDF, emails both sides, and keeps a log of each apartment's activity, such as payments sent and
-accepted. Every landlord runs a space of their own inside one shared deployment, so the app is a
-small SaaS rather than one landlord's tool.
+apartments, fills in a rental agreement, signs it, and sends each renter a link on WhatsApp; the
+renter opens the link with no sign-in, reads the agreement's PDF and signs on a signature pad.
+The app renders the signed agreement as a PDF, keeps a record of every signature, and keeps a
+log of each apartment's activity, such as payments received. Every landlord runs a space of
+their own inside one shared deployment, so the app is a small SaaS rather than one landlord's
+tool.
 
 **Contents:** [Overview](#overview) · [Tech stack](#tech-stack) · [Architecture](#architecture) ·
 [Getting started](#getting-started) · [Scripts](#scripts) · [Details](#details)
 
 ## Overview
 
-- **Sign-in and roles**: a user signs in with a Google account and, on the first visit, picks a
-  role: landlord or renter. A landlord becomes a customer of the service without help and gets a
-  space of their own; in this app a "SaaS tenant" is such a landlord customer, never a person
-  renting an apartment.
+- **Sign-in and roles**: only landlords sign in, with a Google account. A landlord account is a
+  record the admin adds, and gives the landlord a space of their own; in this app a "SaaS
+  tenant" is such a landlord customer, never a person renting an apartment. A renter never signs
+  in.
 - **Apartments**: a landlord adds apartments (address, unit, rooms, monthly rent) and can
   disable one.
 - **Rental agreements**: a landlord fills in an agreement for an apartment: property and
-  included equipment, lease terms, utility limits, the landlord's details, and optional
-  guarantees and a guarantor. The form checks Israeli ID and phone numbers and the order of the
-  lease dates.
-- **Signing**: the landlord shares the agreement's link, for example on WhatsApp. The renter
-  who opens it signs in, completes the renter's details, uploads an ID card and pay slips, and
-  draws a signature; the landlord then signs too.
-- **PDF and email**: every save renders the agreement as a PDF from a Hebrew template. Both
-  sides get an email about it, and either can download the PDF. Email reaches only an address
-  that confirmed the verification email AWS sends on a user's first sign-in.
-- **Activity log and live updates**: each apartment keeps a log, such as "Payment sent for
-  05/2025", and an entry can wait for the other side's confirmation. A change a user makes
-  reaches that user's other open sessions without a reload.
+  included equipment, lease terms, utility limits, the landlord's and the renters' details, and
+  optional guarantees and a guarantor. The form checks Israeli ID and phone numbers and the
+  order of the lease dates.
+- **Signing through a link**: the landlord signs first, then sends each renter a link of their
+  own on WhatsApp, valid for 2 days. The renter's page, in Hebrew or English, shows a summary,
+  the agreement's PDF, an "I have read" checkbox and the signature pad. The last renter's
+  signature completes the agreement, and the same link then offers the final PDF. An edit of the
+  agreement makes the links already sent refuse to sign.
+- **PDF and records**: every save renders the agreement as a PDF from a Hebrew template. The
+  PDF a link was sent for is kept under a key of its own with its SHA-256, and each signature
+  adds a signing event (time, IP address, browser, the PDF's SHA-256). Deleting a signed
+  agreement archives it and keeps its files. The landlord gets an email on each save; email
+  reaches only an address that confirmed the verification email AWS sends on first sign-in.
+- **Activity log and live updates**: each apartment keeps a log, such as "Payment received for
+  05/2025". A change a landlord makes reaches the landlord's other open sessions without a
+  reload.
 - **Operator and languages**: the operator signs in as the admin, a Google account fixed when
   the app is deployed, sees every landlord account and can disable one, and never manages a
-  landlord's apartments, agreements or renters. The interface follows the browser's language,
-  Hebrew or English, and fits a phone screen.
+  landlord's apartments, agreements or renters. The interface opens in Hebrew, switches to
+  English, and fits a phone screen.
 
 ## Tech stack
 

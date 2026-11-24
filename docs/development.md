@@ -87,8 +87,10 @@ No script takes an environment argument. The git branch selects the stack every 
   `--list-resources`, `--xray on|off` and `--prune-layers`. `--delete-stack` stops while a
   bucket of the stack holds objects, unless `--empty` is passed with it.
 - `test.sh` — the quality gate, above.
-- `tools/` — hands-on tools: `publish-docs.sh` (publishes the
-  README and `docs/` to the `RENTracker-public` repository).
+- `tools/` — hands-on tools: `clone-prod-data.sh` (replaces the
+  `rntrk-fb` stack's tables and documents bucket with production's), `import-paper-signed.sh`
+  (records an agreement signed on paper, with its scan as the final copy) and `publish-docs.sh`
+  (publishes the README and `docs/` to the `RENTracker-public` repository).
 
 `scripts/lib/app-env.sh` holds what the scripts share: the `--help` printer, the settings-file
 loaders, which refuse a file git tracks, and the branch's stack selection. It also sets
@@ -113,12 +115,14 @@ repo creates, which `stack-params.sh` names:
 
 ## Layers
 
-A change to a layer's source does not deploy by itself. `stack-params.sh` pins every layer to
-a published version, the `rntrk-*` layers built from this repository included, so the stack
-builds none of them. A change under `backend/RenTracker-service/ecs/layers/`,
-`backend/websockets/layers/` or `backend/layers/document-utils/` reaches the functions only
-through a new layer version and a new pin. Passing a layer's parameter empty makes the stack
-publish that layer from its folder.
+On `main`, `stack-params.sh` pins every layer to a published version, the `rntrk-*` layers
+built from this repository included, so the production stack builds none of them: a change
+under `backend/RenTracker-service/ecs/layers/`, `backend/websockets/layers/` or
+`backend/layers/document-utils/` reaches production only through a new layer version and a new
+pin. A feature branch's stack publishes the `dbData` layer from its folder (its parameter is
+passed empty), as `rntrk-fb-DbDataLayer`, so a change to it is tried on `rntrk-fb` before it is
+published for `main`. A layer ships its folder as it is, so `deploy.sh` first installs the
+folder's npm dependencies with `npm ci`.
 
 The container under `backend/RenTracker-service/ecs/` runs the same layers as a WebSocket
 server of its own; the template does not deploy it. Its image builds with

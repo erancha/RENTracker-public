@@ -1,7 +1,9 @@
 # Sign-in
 
-Landlords, renters and the admin sign in to RENTracker with a Google account, and there is no
-other way in. This page details the Cognito entry of
+Landlords and the admin sign in to RENTracker with a Google account, and there is no other way
+in. Renters never sign in: they sign through the link the landlord sends
+(ADR 0005), on routes that take no token
+([API endpoints](api.md#rest-api)). This page details the Cognito entry of
 [Architecture](architecture.md#the-entry-points): how a sign-in reaches the APIs, what the
 stack adds to the user pool it signs in through, how to set it up in a new AWS account, and how
 a user's role is decided. The pool is not this repo's: the `vsdb-cognito` stack of
@@ -30,13 +32,15 @@ sequenceDiagram
 
 1. The browser app signs in with `react-oidc-context` (`frontend/src/index.tsx`), configured
    from `frontend/src/appConfig.json`: the pool, the stack's app client and the redirect URL.
-   The sign-in button sends the browser to the pool's hosted domain, which offers Google only;
-   Google returns to the pool, and the pool returns the browser to the redirect URL with an
-   authorization code, which the app exchanges for tokens. The app keeps the ID token, whose
-   `sub` claim is the user id everywhere in the data.
+   The landing page's Google button sends the browser to the pool's hosted domain, which offers
+   Google only; Google returns to the pool, and the pool returns the browser to the redirect URL
+   with an authorization code, which the app exchanges for tokens. The app keeps the ID token,
+   whose `sub` claim is the user id everywhere in the data.
 2. The REST API's Cognito authorizer checks the ID token on every agreement request.
-3. The WebSocket connect URL carries the ID token in its `token` parameter. The connect function
-   reads it and refuses one without a user id or past its expiry.
+3. The WebSocket connect URL carries the ID token in its `token` parameter. The WebSocket API
+   has no authorizer, so the connect function verifies the token itself (`aws-jwt-verify`): its
+   signature against the pool's published keys, its expiry, and that the app's client issued
+   it. It refuses the connection otherwise.
 4. Sign-out drops the tokens and sends the browser to the pool's `/logout` with the app client id
    and the sign-out URL, which ends the session at the hosted domain too.
 
@@ -82,10 +86,11 @@ entered in the Google Cloud console.
 4. **Deploy.** `./scripts/deploy.sh --frontend` creates the app client with the URLs above and
    prints the CloudFront address; sign in there or at `http://localhost:3000`.
 5. **Make yourself the admin.** The admin is the user whose id equals the `AdminUserId`
-   parameter, and its template default is a user of the original account's pool, so a new pool
-   has no admin. Sign in once, then in the AWS console open **Amazon Cognito → User pools →
-   vsdb-cognito-UserPool → Users**, open your user (named `google_<number>`) and copy its `sub`
-   attribute. Add `"AdminUserId=<sub>"` to `stack_parameter_overrides` and deploy again.
+   parameter, which `stack_parameter_overrides` sets to a user of the original account's pool,
+   so a new pool has no admin. Sign in once, then in the AWS console open **Amazon Cognito →
+   User pools → vsdb-cognito-UserPool → Users**, open your user (named `google_<number>`) and
+   copy its `sub` attribute. Set `"AdminUserId=<sub>"` in `stack_parameter_overrides` and deploy
+   again.
 
 ## Who may sign in
 
@@ -96,9 +101,33 @@ account Google lets through becomes a pool user on its first sign-in, and the ap
 allow-list of its own. What a user may do follows from the user's role ([Roles](#roles)). A
 person who signs in to another app on the same pool has the same user id here.
 
+The signed-out landing page (`frontend/src/components/Landing.tsx`) is one card: the product
+name, a tagline and the running build, a short pitch in three steps, a toggle that adds the
+details, and the Google button, with links under the card to invite a friend on WhatsApp and to
+the public copy of the source. The language switch sits at the page's bottom; the app's top bar
+and menu show only after sign-in. Its stylesheet, `frontend/src/styles/landing.css`, is an exact
+copy of loan-simulator's, which the author's other apps copy too, so the page reads the same in
+all of them.
+
+Under the Google button, the toggle "Why sign in with Google?"
+(`frontend/src/components/SignInReasons.tsx`) explains signing in with Google to a visitor wary
+of it. It opens a panel, in English or Hebrew, saying that Google approves the sign-in and
+gives the app only a confirmation of who the person is, that the person can disconnect the app in
+the Google account's settings, and that the app stores no passwords. It ends with a link to
+Google's own help page on Sign in with Google, and a ✕ closes it.
+
 ## Roles
 
-A user is the admin, a landlord or a renter, and `WebsocketConnect` decides which on every
-connect: the admin when the user id equals the `AdminUserId` parameter, a landlord when a SaaS
-tenant record exists for the user and is not disabled, a renter otherwise. A landlord's first
-reply carries the apartments and the first apartment's activity.
+A user who signs in is the admin, a landlord or neither, and `WebsocketConnect` decides which on
+every connect: the admin when the user id equals the `AdminUserId` parameter, a landlord when a
+SaaS tenant record exists for the user and is not disabled. Anyone else, a renter who signed in
+for instance, sees only a page saying that renters sign through the link their landlord sends.
+A landlord's first reply carries the apartments and the first apartment's activity.
+
+The admin adds a landlord by inviting an email, with a name, on the landlord-records screen. The
+invitation is a record keyed by that email. When a user with no record connects, the connect
+function looks for an invitation naming the email in the user's verified token, and in one
+transaction moves it to the user's id, so the user is a landlord from that connect on; two
+connects at once claim it once. The email in the token is the Google account's: the app client
+grants no scope that lets a user change it. Only the admin creates, deletes, enables or disables
+a landlord record; a landlord may edit the details of their own.

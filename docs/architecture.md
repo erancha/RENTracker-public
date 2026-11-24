@@ -70,8 +70,10 @@ their traces with the stack name.
   token and decides the user's role; it and `WebsocketDisconnect` keep the connections in Redis.
   `WebsocketCommandsHandler` runs each command through the commands-handlers layer and replies
   to every open connection of the same user.
-- **REST API** — one function, `DocumentsRestFunction`, behind the shared user pool's
-  authorizer: the rental agreements, their PDFs and their attachments.
+- **REST API** — one function, `DocumentsRestFunction`: behind the shared user pool's
+  authorizer, the landlord's rental agreements, their PDFs, attachments and signing links; and
+  two throttled routes with no sign-in, where a renter holding a link reads the agreement and
+  signs (ADR 0005).
 
 **Workers**, each one's steps, limits and retries in
 [Workers' responsibilities and flows](workers.md):
@@ -81,7 +83,8 @@ their traces with the stack name.
   bus, and invalidates a changed PDF in the documents CloudFront cache. `messagesToClientsDLQ`
   takes a message that keeps failing.
 - **`DocumentsStreamProcessor`** — reads the Documents table's stream: it renders a new or
-  changed agreement to a PDF in S3 and removes a deleted agreement's files.
+  changed agreement to a PDF in S3, writes the final copy once every renter has signed, and
+  removes a deleted draft's files.
 
 **Hosting and identity**
 
@@ -99,20 +102,24 @@ their traces with the stack name.
 One deployment serves every landlord: all landlords share the same functions and tables
 (ADR 0001). A landlord's `saas_tenant_id` is the
 landlord's Cognito user id, every item carries it, and the data layer's writes are conditional on
-it. An agreement is also changed by its renter, through the same conditional writes.
+it. A renter, who does not sign in, changes an agreement only by signing through a link, whose
+token names that one agreement.
 
 ## Storage
 
 The records live in DynamoDB, the files in S3, and the cache and the connection records in
 Redis. Every table, key, index and object layout is in [Data model](data-model.md).
 
-- **DynamoDB**, four tables named after the stack:
+- **DynamoDB**, six tables named after the stack:
   - `SaaSTenants` — one record per landlord account.
   - `Apartments` — a landlord's apartments.
   - `Documents` — the rental agreements, with a stream the PDF rendering reads.
   - `ApartmentActivity` — an apartment's activity entries.
-- **S3** — the documents bucket holds each agreement's PDF, signature images and attachments
-  under its landlord's prefix; the frontend bucket holds the built app.
+  - `SigningLinks` — the links sent to renters, by the SHA-256 of their token, removed by TTL.
+  - `SigningEvents` — every signature and paper import, only ever added to.
+- **S3** — the documents bucket holds each agreement's PDF, its frozen and final copies,
+  signature images and attachments under its landlord's prefix, and is kept with the tables when
+  the `main` stack is deleted; the frontend bucket holds the built app.
 - **Redis**, on the account's shared database host, outside this stack — the cached reads and
   the connection records (ADR 0003).
 

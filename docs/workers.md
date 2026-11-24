@@ -27,8 +27,21 @@ exists.
 
 ## `DocumentsStreamProcessor`
 
-`DocumentsStreamProcessor` (`documentsStreamProcessor.js`) reads the Documents table's stream. A
-new or changed agreement fills the Hebrew Markdown template in `backend/documents/templates/`
-with the agreement's fields and both signature images, converts it to HTML with `marked`, prints
-it to PDF in headless Chromium and writes it to S3. A deleted agreement deletes its folder in
-the bucket.
+`DocumentsStreamProcessor` (`documentsStreamProcessor.js`) reads the Documents table's stream in
+batches of ten. A new agreement, and a change to what the PDF prints, renders the PDF: an edit
+raises `version`, and a renter's link signature adds `signature_1` or `signature_2`. A change that
+only records a link, a status or the final copy renders nothing, and an agreement with a final
+copy never renders again.
+
+Rendering fills the Hebrew Markdown template in `backend/documents/templates/` with the
+agreement's fields and the signature images: the landlord's, then each renter's, read from the
+key the renter's signature records (a renter who signed in the app before links existed, from
+the folder's `tenantSignature`). The second renter's signature line shows only when the agreement
+names a second renter. `marked` converts it to HTML, headless Chromium prints it to PDF, and the
+PDF goes to `rental-agreement.pdf` with the version in its metadata; sending a signing link
+copies only a PDF whose version matches the agreement's.
+
+When the agreement is `complete`, the same PDF is also written to `final.pdf`, once, with S3's
+conditional write, and its key and SHA-256 are recorded on the agreement as `final_pdf`. A
+retried record finds the key taken and changes nothing. A record that fails is logged and
+skipped. A deleted agreement, which only a draft can be, deletes its folder in the bucket.
